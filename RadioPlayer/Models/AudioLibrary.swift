@@ -13,24 +13,62 @@ struct AudioFile: Sendable {
 enum AudioLibrary {
     static let audioExtensions: Set<String> = ["mp3", "m4a", "aac", "wav"]
 
-    /// 見つかったファイルを Episode.key で引ける形で返す
-    static func scan(roots: [URL]) -> [String: AudioFile] {
-        var found: [String: AudioFile] = [:]
-        let keys: [URLResourceKey] = [.isDirectoryKey, .isUbiquitousItemKey, .ubiquitousItemDownloadingStatusKey]
+    /// 探した結果。files は Episode.key で引ける形、report は設定画面に出す説明
+    struct ScanResult: Sendable {
+        var files: [String: AudioFile] = [:]
+        var report: [String] = []
+    }
 
+    static func scan(roots: [(name: String, url: URL)]) -> ScanResult {
+        var result = ScanResult()
         for root in roots {
-            // 隠しファイルも見る（iCloud の未ダウンロードのファイルは「.名前.mp3.icloud」になるため）
-            guard let enumerator = FileManager.default.enumerator(at: root, includingPropertiesForKeys: keys) else { continue }
-            for case let url as URL in enumerator {
-                guard let file = audioFile(at: url),
-                      let id = identify(url: file.url) else { continue }
+            var fileCount = 0
+            var audioCount = 0
+            var matched = 0
+            var samples: [String] = []
+            walk(root.url, depth: 0) { url in
+                fileCount += 1
+                if samples.count < 3 { samples.append(url.lastPathComponent) }
+                guard let file = audioFile(at: url) else { return }
+                audioCount += 1
+                guard let id = identify(url: file.url) else { return }
+                matched += 1
                 let key = Episode.key(id.show, id.number)
                 // 同じ回が2つあれば、ダウンロード済みのほうを使う
-                if let existing = found[key], existing.isDownloaded || !file.isDownloaded { continue }
-                found[key] = file
+                if let existing = result.files[key], existing.isDownloaded || !file.isDownloaded { return }
+                result.files[key] = file
+            }
+            var line = "\(root.name)：ファイル \(fileCount) 個、音声 \(audioCount) 個、回番号あり \(matched) 個"
+            if !samples.isEmpty { line += "（例：\(samples.joined(separator: "、"))）" }
+            result.report.append(line)
+        }
+        return result
+    }
+
+    /// フォルダの中をたどる。iCloud のフォルダは一覧がまだ届いていないことがあるので、
+    /// 中身はダウンロードせずに一覧だけ取り寄せてから読む
+    private static func walk(_ directory: URL, depth: Int, visit: (URL) -> Void) {
+        guard depth < 5 else { return }
+        var coordinatorError: NSError?
+        var children: [URL] = []
+        NSFileCoordinator().coordinate(readingItemAt: directory, options: .immediatelyAvailableMetadataOnly, error: &coordinatorError) { url in
+            children = (try? FileManager.default.contentsOfDirectory(
+                at: url,
+                includingPropertiesForKeys: [.isDirectoryKey, .isUbiquitousItemKey, .ubiquitousItemDownloadingStatusKey]
+            )) ?? []
+        }
+        if children.isEmpty {
+            children = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isDirectoryKey])) ?? []
+        }
+        for child in children.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
+            // coordinate の中で受け取った URL は別の場所を指すことがあるので、元のフォルダの下に付け直す
+            let url = directory.appending(path: child.lastPathComponent)
+            if (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
+                walk(url, depth: depth + 1, visit: visit)
+            } else {
+                visit(url)
             }
         }
-        return found
     }
 
     /// 番組と回番号。数字で始まらないファイルは nil

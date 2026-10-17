@@ -6,11 +6,15 @@ final class Library: ObservableObject {
     @Published private(set) var episodesByShow: [Show: [Episode]] = [:]
     @Published private(set) var files: [String: AudioFile] = [:]
     @Published private(set) var isScanning = false
+    /// 最後に探したときの様子（設定画面に出す）
+    @Published private(set) var scanReport: [String] = []
     @Published private(set) var folderName: String?
     @Published private(set) var usesCustomCatalog = EpisodeCatalog.usesCustom
 
     private var titles: [Show: [Int: String]] = [:]
     private var folderURL: URL?
+    /// 探している途中にもう一度頼まれたら、終わったあとにもう一度探す
+    private var needsRescan = false
     private let bookmarkKey = "iCloudFolderBookmark"
 
     init() {
@@ -48,15 +52,23 @@ final class Library: ObservableObject {
 
     /// アプリの「書類」フォルダと、選んだ iCloud Drive のフォルダを探し直す
     func rescan() async {
-        guard !isScanning else { return }
+        if isScanning {
+            needsRescan = true
+            return
+        }
         isScanning = true
-        var roots = [URL.documentsDirectory]
-        if let folderURL { roots.append(folderURL) }
-        let found = await Task.detached(priority: .userInitiated) {
-            AudioLibrary.scan(roots: roots)
-        }.value
-        files = found
-        rebuild()
+        repeat {
+            needsRescan = false
+            var roots: [(name: String, url: URL)] = [("アプリの書類フォルダ", URL.documentsDirectory)]
+            if let folderURL { roots.append(("選んだフォルダ「\(folderURL.lastPathComponent)」", folderURL)) }
+            let scanRoots = roots
+            let result = await Task.detached(priority: .userInitiated) {
+                AudioLibrary.scan(roots: scanRoots)
+            }.value
+            files = result.files
+            scanReport = result.report
+            rebuild()
+        } while needsRescan
         isScanning = false
     }
 
@@ -64,7 +76,8 @@ final class Library: ObservableObject {
 
     func setFolder(_ url: URL) {
         stopAccessingFolder()
-        guard url.startAccessingSecurityScopedResource() else { return }
+        // false が返っても読めることがあるので、そのまま進める
+        _ = url.startAccessingSecurityScopedResource()
         folderURL = url
         folderName = url.lastPathComponent
         // 次回以降もアクセスできるように覚えておく
@@ -83,8 +96,8 @@ final class Library: ObservableObject {
     private func restoreFolder() {
         guard let data = UserDefaults.standard.data(forKey: bookmarkKey) else { return }
         var isStale = false
-        guard let url = try? URL(resolvingBookmarkData: data, bookmarkDataIsStale: &isStale),
-              url.startAccessingSecurityScopedResource() else { return }
+        guard let url = try? URL(resolvingBookmarkData: data, bookmarkDataIsStale: &isStale) else { return }
+        _ = url.startAccessingSecurityScopedResource()
         folderURL = url
         folderName = url.lastPathComponent
         if isStale, let fresh = try? url.bookmarkData() {

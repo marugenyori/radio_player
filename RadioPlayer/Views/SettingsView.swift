@@ -36,6 +36,10 @@ struct SettingsView: View {
                     .disabled(library.isScanning)
                 } header: {
                     Text("見つかった音声ファイル")
+                } footer: {
+                    if !library.scanReport.isEmpty {
+                        Text(library.scanReport.joined(separator: "\n"))
+                    }
                 }
 
                 Section {
