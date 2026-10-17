@@ -1,0 +1,28 @@
+name: App Store Connect の状況
+
+# Actions 画面から手動で実行する。ビルドの処理状況と TestFlight のテスターを表示する
+on:
+  workflow_dispatch:
+
+jobs:
+  status:
+    name: 状況を表示
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      BUNDLE_ID: ${{ secrets.BUNDLE_ID || 'com.marugenyori.radioplayer' }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: 状況を表示
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/keys"
+          printf '%s\n' "$ASC_KEY_P8" > "$RUNNER_TEMP/keys/key.p8"
+          export ASC_KEY_PATH="$RUNNER_TEMP/keys/key.p8"
+          pip install --quiet "pyjwt[crypto]"
+          python3 .github/scripts/asc_status.py | tee status.txt
+          { echo '```'; cat status.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
