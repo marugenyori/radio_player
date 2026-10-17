@@ -17,9 +17,8 @@ targets:
     platform: iOS
     sources:
       - RadioPlayer
-      # 回番号とタイトルの一覧（リポジトリ直下に置く。なくてもビルドは通る）
+      # 回番号とタイトルの一覧（リポジトリ直下に置く。ないときは CI が空の一覧を作る）
       - path: episodes.json
-        optional: true
         buildPhase: resources
     scheme: {}
     info:

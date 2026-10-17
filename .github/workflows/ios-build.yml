@@ -33,6 +33,8 @@ jobs:
 
       - name: Xcode プロジェクトを生成
         run: |
+          # episodes.json がまだなければ空の一覧で代用する（タイトルなしでビルドだけ通す）
+          [ -f episodes.json ] || echo '[]' > episodes.json
           brew install xcodegen
           xcodegen generate
           xcodebuild -version
@@ -131,6 +133,8 @@ jobs:
 
       - name: Xcode プロジェクトを生成
         run: |
+          # episodes.json がまだなければ空の一覧で代用する（タイトルなしでビルドだけ通す）
+          [ -f episodes.json ] || echo '[]' > episodes.json
           brew install xcodegen
           xcodegen generate
 

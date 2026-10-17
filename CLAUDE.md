@@ -20,7 +20,7 @@
 | `RadioPlayer/App` | アプリの入口と、一番外側の画面 |
 | `RadioPlayer/Models` | 番組と回（`Episode`）、タイトル一覧（`EpisodeCatalog`）、ファイル探し（`AudioLibrary`）、聴取状況（`ListeningStore`）、再生（`AudioPlayer`） |
 | `RadioPlayer/Views` | 一覧・再生画面・下の再生バー・設定 |
-| `episodes.json` | 回番号とタイトルの一覧（リポジトリ直下。アプリに同梱される。なくてもビルドは通る） |
+| `episodes.json` | 回番号とタイトルの一覧（リポジトリ直下。アプリに同梱される。ないときは CI が空の一覧を作ってビルドする） |
 | `tools/make_icon.py` | アプリアイコン（1024px）を作るスクリプト |
 | `.github/workflows/ios-build.yml` | ビルド確認と TestFlight 配信 |
 
