@@ -1,0 +1,45 @@
+# XcodeGen の設定。CI で `xcodegen generate` を実行して RadioPlayer.xcodeproj を作る
+name: RadioPlayer
+options:
+  deploymentTarget:
+    iOS: "17.0"
+  developmentLanguage: ja
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    # Bundle ID は CI からこの設定で渡す（PRODUCT_BUNDLE_IDENTIFIER は直接上書きしない）
+    APP_BUNDLE_ID: com.marugenyori.radioplayer
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  RadioPlayer:
+    type: application
+    platform: iOS
+    sources:
+      - RadioPlayer
+      # 回番号とタイトルの一覧（リポジトリ直下に置く。なくてもビルドは通る）
+      - path: episodes.json
+        optional: true
+        buildPhase: resources
+    scheme: {}
+    info:
+      path: RadioPlayer/Info.plist
+      properties:
+        CFBundleDisplayName: 金曜・最高ラジオ
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleDevelopmentRegion: ja
+        UILaunchScreen: {}
+        UIBackgroundModes: [audio]
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID)
+        PRODUCT_NAME: RadioPlayer
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        CODE_SIGN_STYLE: Automatic

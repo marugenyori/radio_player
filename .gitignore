@@ -1,0 +1,16 @@
+# XcodeGen が生成するもの（CI で毎回作り直す）
+*.xcodeproj/
+RadioPlayer/Info.plist
+
+build/
+DerivedData/
+*.xcarchive
+xcuserdata/
+*.xcuserstate
+.DS_Store
+
+# 秘密情報と音声ファイルは入れない
+*.p8
+ExportOptions.plist
+*.mp3
+*.m4a
