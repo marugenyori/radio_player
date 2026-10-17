@@ -1,6 +1,6 @@
 name: App Store Connect の状況
 
-# Actions 画面から手動で実行する。ビルドの処理状況と TestFlight のテスターを表示する
+# Actions 画面から手動で実行する。TestFlight の内部テストのグループとテスターを整え、ビルドの処理状況を表示する
 on:
   workflow_dispatch:
 
@@ -24,5 +24,6 @@ jobs:
           printf '%s\n' "$ASC_KEY_P8" > "$RUNNER_TEMP/keys/key.p8"
           export ASC_KEY_PATH="$RUNNER_TEMP/keys/key.p8"
           pip install --quiet "pyjwt[crypto]"
+          python3 .github/scripts/ensure_testers.py
           python3 .github/scripts/asc_status.py | tee status.txt
           { echo '```'; cat status.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
