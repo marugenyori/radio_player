@@ -33,6 +33,7 @@
 - TestFlight：Actions → iOS Build → Run workflow →「TestFlight にアップロードする」にチェック
 - Secrets：`APPLE_TEAM_ID`、`ASC_KEY_ID`、`ASC_ISSUER_ID`、`ASC_KEY_P8`（`marugenyori/claud_code` と同じ値）。`BUNDLE_ID` は任意（なければ `com.marugenyori.radioplayer`）
 - Bundle ID はビルド設定 `APP_BUNDLE_ID` で渡す。`PRODUCT_BUNDLE_IDENTIFIER` をコマンドラインで上書きしない
+- App ID は `.github/scripts/ensure_app.py` が API で自動登録する。App Store Connect のアプリは API で作れないので、持ち主に作ってもらう
 - CI は毎回まっさらなマシンで自動署名するので、開発用証明書が増える。`.github/scripts/cleanup_dev_certs.py` でアーカイブ前に消している
 
 ## 音声ファイルの決まり

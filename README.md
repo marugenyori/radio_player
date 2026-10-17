@@ -14,19 +14,16 @@ GitHub のこのリポジトリで「Settings」→「Secrets and variables」�
 
 Bundle ID を `com.marugenyori.radioplayer` 以外にしたいときだけ、`BUNDLE_ID` も登録します。
 
-### 2. Apple Developer で App ID を登録する
-1. https://developer.apple.com/account →「Certificates, IDs & Profiles」→「Identifiers」→「＋」
-2. 「App IDs」→「Continue」→「App」→「Continue」
-3. 「Description」に `RadioPlayer`、「Bundle ID」は「Explicit」で `com.marugenyori.radioplayer`
-4. 「Capabilities」は何もチェックしないで「Continue」→「Register」
-
-### 3. App Store Connect にアプリを登録する
-1. https://appstoreconnect.apple.com →「アプリ」→「＋」→「新規App」
-2. プラットフォーム「iOS」、名前「金曜・最高ラジオ」、言語「日本語」、バンドル ID は手順2のもの、SKU は `radioplayer`、ユーザアクセス「アクセス制限なし」→「作成」
-
-### 4. TestFlight に出す
+### 2. TestFlight のワークフローを一度動かす（App ID が自動で登録される）
 「Actions」→「iOS Build」→「Run workflow」→「TestFlight にアップロードする」にチェック →「Run workflow」。
-終わってから 10〜30分ほどで、iPhone の TestFlight アプリに出てきます。
+App ID `com.marugenyori.radioplayer` が自動で登録されます。App Store Connect にまだアプリがないので、1回目はここで止まります。
+
+### 3. App Store Connect にアプリを登録する（API では作れないので手作業）
+1. https://appstoreconnect.apple.com →「アプリ」→「＋」→「新規App」
+2. プラットフォーム「iOS」、名前「金曜・最高ラジオ」、言語「日本語」、バンドル ID は `com.marugenyori.radioplayer` を選ぶ、SKU は `radioplayer`、ユーザアクセス「アクセス制限なし」→「作成」
+
+### 4. もう一度 TestFlight のワークフローを動かす
+手順2と同じ操作をします。終わってから 10〜30分ほどで、iPhone の TestFlight アプリに出てきます。
 
 ## 音声ファイルの入れ方
 
