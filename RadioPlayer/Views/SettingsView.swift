@@ -46,13 +46,16 @@ struct SettingsView: View {
                 Section {
                     LabeledContent("iPhone に保存済み", value: "\(library.localCount) 回")
                     if let current = downloader.current {
-                        LabeledContent("ダウンロード中", value: "\(current.show.name) \(current.numberLabel)")
-                        LabeledContent("残り", value: "\(downloader.remaining) 回")
+                        LabeledContent(downloader.activity, value: "\(current.show.name) \(current.numberLabel)")
+                        LabeledContent("残り", value: "\(downloader.remaining) 件")
                         Button("止める", role: .destructive) { downloader.stop() }
                     } else if !library.episodesToDownload.isEmpty {
                         Button("iCloud にある \(library.episodesToDownload.count) 回をダウンロード") { downloader.start() }
+                    } else if downloader.compress, !library.episodesToCompress.isEmpty {
+                        Button("圧縮を続ける") { downloader.start() }
                     }
                     Toggle("iCloud から自動でダウンロード", isOn: $downloader.autoDownload)
+                    Toggle("ダウンロードした音声を圧縮する", isOn: $downloader.compress)
                 } header: {
                     Text("iPhone へのダウンロード")
                 } footer: {
@@ -60,7 +63,7 @@ struct SettingsView: View {
                         if let error = downloader.errorMessage {
                             Text(error).foregroundStyle(.red)
                         }
-                        Text("ダウンロードした回は電波がなくても再生できます。ダウンロードはアプリを開いている間に進みます。消したいときは「ファイル」アプリの「このiPhone内」→「金曜・最高ラジオ」から削除できます。")
+                        Text("ダウンロードした回は電波がなくても再生できます。圧縮をオンにすると、しゃべり向けの形式（モノラル・48kbps）に変換して容量を半分〜3分の1ほどにします。ダウンロードと圧縮はアプリを開いている間に進みます。消したいときは「ファイル」アプリの「このiPhone内」→「金曜・最高ラジオ」から削除できます。")
                     }
                 }
 

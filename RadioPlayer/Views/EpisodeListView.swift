@@ -31,7 +31,7 @@ struct EpisodeListView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("音声あり \(library.fileCount(show)) 回 ／ 全 \(library.episodes(of: show).count) 回")
                     if let current = downloader.current {
-                        Text("iPhone にダウンロード中：\(current.show.name) \(current.numberLabel)（残り \(downloader.remaining) 回）")
+                        Text("\(downloader.activity)：\(current.show.name) \(current.numberLabel)（残り \(downloader.remaining) 件）")
                     }
                 }
             }

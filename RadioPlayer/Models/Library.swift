@@ -84,6 +84,14 @@ final class Library: ObservableObject {
         Show.allCases.flatMap { episodes(of: $0) }.filter { files[$0.id].map { !$0.isLocal } ?? false }
     }
 
+    /// iPhone の中にあって、まだ変換していない回（mp3 のまま）
+    var episodesToCompress: [Episode] {
+        Show.allCases.flatMap { episodes(of: $0) }.filter {
+            guard let file = files[$0.id], file.isLocal else { return false }
+            return file.url.pathExtension.lowercased() != "m4a"
+        }
+    }
+
     /// ダウンロードが終わった回を、iPhone の中のファイルに差し替える
     func addLocalFile(_ url: URL, for episode: Episode) {
         let old = files[episode.id]

@@ -11,9 +11,11 @@ struct RadioPlayerApp: App {
     init() {
         let store = ListeningStore()
         _store = StateObject(wrappedValue: store)
-        _player = StateObject(wrappedValue: AudioPlayer(store: store))
+        let player = AudioPlayer(store: store)
+        _player = StateObject(wrappedValue: player)
         let library = Library()
         let downloader = Downloader(library: library)
+        downloader.playingEpisodeID = { [weak player] in player?.current?.id }
         library.onScanned = { [weak downloader] in downloader?.startIfAuto() }
         _library = StateObject(wrappedValue: library)
         _downloader = StateObject(wrappedValue: downloader)

@@ -1,6 +1,7 @@
 import Foundation
 
-/// iCloud Drive のフォルダにある音声を、iPhone の中（アプリの書類フォルダ）にコピーする。
+/// iCloud Drive のフォルダにある音声を、iPhone の中（アプリの書類フォルダ）にコピーし、
+/// 設定がオンなら小さい形式に変換する。
 /// コピーした回は電波がなくても再生でき、iCloud 側の一時的なコピーは消して容量を二重に使わない
 @MainActor
 final class Downloader: ObservableObject {
@@ -11,6 +12,8 @@ final class Downloader: ObservableObject {
     }
 
     @Published private(set) var current: Episode?
+    /// 今やっていること（ダウンロード中 / 変換中）
+    @Published private(set) var activity = ""
     @Published private(set) var remaining = 0
     @Published private(set) var errorMessage: String?
     @Published var autoDownload: Bool {
@@ -19,6 +22,16 @@ final class Downloader: ObservableObject {
             if autoDownload { start() }
         }
     }
+
+    @Published var compress: Bool {
+        didSet {
+            UserDefaults.standard.set(compress, forKey: "compressAudio")
+            if compress { startIfAuto() }
+        }
+    }
+
+    /// 再生中の回（変換すると再生が途切れるので飛ばす）
+    var playingEpisodeID: @MainActor () -> String? = { nil }
 
     private let library: Library
     private var task: Task<Void, Never>?
@@ -30,6 +43,22 @@ final class Downloader: ObservableObject {
     init(library: Library) {
         self.library = library
         autoDownload = UserDefaults.standard.object(forKey: "autoDownload") as? Bool ?? true
+        compress = UserDefaults.standard.object(forKey: "compressAudio") as? Bool ?? true
+        skipped = Set(UserDefaults.standard.stringArray(forKey: Self.compressSkippedKey) ?? [])
+    }
+
+    /// 変換しても小さくならなかったファイル名（次からは試さない）
+    private var skipped: Set<String>
+    private static let compressSkippedKey = "compressSkipped"
+
+    private var compressTargets: [Episode] {
+        guard compress else { return [] }
+        let playing = playingEpisodeID()
+        return library.episodesToCompress.filter { episode in
+            guard episode.id != playing, !failed.contains(episode.id),
+                  let file = library.file(for: episode) else { return false }
+            return !skipped.contains(file.url.lastPathComponent)
+        }
     }
 
     var isRunning: Bool { task != nil }
@@ -48,6 +77,7 @@ final class Downloader: ObservableObject {
             await run()
             task = nil
             current = nil
+            activity = ""
             remaining = library.episodesToDownload.count
         }
     }
@@ -58,19 +88,38 @@ final class Downloader: ObservableObject {
 
     private func run() async {
         while !Task.isCancelled {
-            let targets = library.episodesToDownload.filter { !failed.contains($0.id) }
-            remaining = targets.count
-            guard let episode = targets.first, let source = library.file(for: episode) else { return }
-            current = episode
-            do {
-                let url = try await Self.copy(source, show: episode.show)
-                library.addLocalFile(url, for: episode)
-            } catch DownloadError.diskFull {
-                errorMessage = DownloadError.diskFull.localizedDescription
+            let downloads = library.episodesToDownload.filter { !failed.contains($0.id) }
+            let compressions = compressTargets
+            remaining = downloads.count + compressions.count
+            if let episode = downloads.first, let source = library.file(for: episode) {
+                current = episode
+                activity = "ダウンロード中"
+                do {
+                    let url = try await Self.copy(source, show: episode.show)
+                    library.addLocalFile(url, for: episode)
+                } catch DownloadError.diskFull {
+                    errorMessage = DownloadError.diskFull.localizedDescription
+                    return
+                } catch {
+                    failed.insert(episode.id)
+                    errorMessage = "\(episode.show.name) \(episode.numberLabel)：\(error.localizedDescription)"
+                }
+            } else if let episode = compressions.first, let file = library.file(for: episode) {
+                current = episode
+                activity = "圧縮中"
+                do {
+                    if let url = try await AudioCompressor.compress(file.url) {
+                        library.addLocalFile(url, for: episode)
+                    } else {
+                        skipped.insert(file.url.lastPathComponent)
+                        UserDefaults.standard.set(Array(skipped), forKey: Self.compressSkippedKey)
+                    }
+                } catch {
+                    failed.insert(episode.id)
+                    errorMessage = "\(episode.show.name) \(episode.numberLabel) の圧縮：\(error.localizedDescription)"
+                }
+            } else {
                 return
-            } catch {
-                failed.insert(episode.id)
-                errorMessage = "\(episode.show.name) \(episode.numberLabel)：\(error.localizedDescription)"
             }
         }
     }
