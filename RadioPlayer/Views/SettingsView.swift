@@ -5,6 +5,8 @@ import UniformTypeIdentifiers
 struct SettingsView: View {
     @EnvironmentObject private var library: Library
     @EnvironmentObject private var downloader: Downloader
+    @EnvironmentObject private var player: AudioPlayer
+    @State private var showsSound = false
     @Environment(\.dismiss) private var dismiss
 
     private enum ImportKind {
@@ -19,6 +21,13 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    Toggle("聴き終わったら次の回を再生", isOn: $player.autoPlayNext)
+                    Button("音質を調整する") { showsSound = true }
+                } header: {
+                    Text("再生")
+                }
+
                 Section {
                     ForEach(Show.allCases) { show in
                         LabeledContent(show.name, value: "\(library.fileCount(show)) 回")
@@ -107,6 +116,9 @@ struct SettingsView: View {
                 } header: {
                     Text("タイトル一覧")
                 }
+            }
+            .sheet(isPresented: $showsSound) {
+                SoundSettingsView()
             }
             .navigationTitle("設定")
             .navigationBarTitleDisplayMode(.inline)

@@ -16,6 +16,10 @@ struct RadioPlayerApp: App {
         let library = Library()
         let downloader = Downloader(library: library)
         downloader.playingEpisodeID = { [weak player] in player?.current?.id }
+        player.nextEpisode = { [weak library] episode in
+            guard let library, let next = library.next(after: episode), let file = library.file(for: next) else { return nil }
+            return (next, file)
+        }
         library.onScanned = { [weak downloader] in downloader?.startIfAuto() }
         _library = StateObject(wrappedValue: library)
         _downloader = StateObject(wrappedValue: downloader)

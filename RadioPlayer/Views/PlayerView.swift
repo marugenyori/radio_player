@@ -6,6 +6,7 @@ struct PlayerView: View {
     @EnvironmentObject private var store: ListeningStore
     @State private var isScrubbing = false
     @State private var scrubTime: Double = 0
+    @State private var showsSound = false
 
     var body: some View {
         Group {
@@ -16,6 +17,9 @@ struct PlayerView: View {
             }
         }
         .presentationDragIndicator(.visible)
+        .sheet(isPresented: $showsSound) {
+            SoundSettingsView()
+        }
     }
 
     private func content(_ episode: Episode) -> some View {
@@ -110,6 +114,13 @@ struct PlayerView: View {
                 } label: {
                     Label(rateLabel(player.rate), systemImage: "gauge.with.dots.needle.67percent")
                 }
+
+                Button {
+                    showsSound = true
+                } label: {
+                    Label("音質", systemImage: "slider.horizontal.3")
+                }
+                .padding(.leading, 16)
 
                 Spacer()
 

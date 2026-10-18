@@ -18,7 +18,7 @@
 |---|---|
 | `project.yml` | XcodeGen の設定。`.xcodeproj` はリポジトリに入れず、CI で `xcodegen generate` して作る |
 | `RadioPlayer/App` | アプリの入口と、一番外側の画面 |
-| `RadioPlayer/Models` | 番組と回（`Episode`）、タイトル一覧（`EpisodeCatalog`）、ファイル探し（`AudioLibrary`）、iPhone へのダウンロード（`Downloader`）、聴取状況（`ListeningStore`）、再生（`AudioPlayer`） |
+| `RadioPlayer/Models` | 番組と回（`Episode`）、タイトル一覧（`EpisodeCatalog`）、ファイル探し（`AudioLibrary`）、iPhone へのダウンロード（`Downloader`）、聴取状況（`ListeningStore`）、再生（`AudioPlayer`）、音質の調整値（`SoundSettings`） |
 | `RadioPlayer/Views` | 一覧・再生画面・下の再生バー・設定 |
 | `episodes.json` | 回番号とタイトルの一覧（リポジトリ直下。アプリに同梱される。ないときは CI が空の一覧を作ってビルドする） |
 | `tools/make_icon.py` | アプリアイコン（1024px）を作るスクリプト |
@@ -35,6 +35,12 @@
 - Bundle ID はビルド設定 `APP_BUNDLE_ID` で渡す。`PRODUCT_BUNDLE_IDENTIFIER` をコマンドラインで上書きしない
 - App ID は `.github/scripts/ensure_app.py` が API で自動登録する。App Store Connect のアプリは API で作れないので、持ち主に作ってもらう
 - CI は毎回まっさらなマシンで自動署名するので、開発用証明書が増える。`.github/scripts/cleanup_dev_certs.py` でアーカイブ前に消している
+
+## 再生
+
+- `AudioPlayer` は AVAudioEngine で「AVAudioPlayerNode → AVAudioMixerNode（形式をそろえる）→ TimePitch（速度）→ EQ → DynamicsProcessor → 出力」とつないで鳴らす。音質の調整（`SoundSettings`）は EQ と DynamicsProcessor に反映する
+- 区間を入れ直すたびに `generation` を増やし、`node.stop()` で来る完了通知を「聴き終わった」と取り違えないようにしている
+- 聴き終わったら次の回（音声がある回）を自動再生する（設定でオフにできる）
 
 ## 音声ファイルの決まり
 
