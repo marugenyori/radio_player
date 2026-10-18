@@ -59,8 +59,8 @@ final class Library: ObservableObject {
         isScanning = true
         repeat {
             needsRescan = false
-            var roots: [(name: String, url: URL)] = [("アプリの書類フォルダ", URL.documentsDirectory)]
-            if let folderURL { roots.append(("選んだフォルダ「\(folderURL.lastPathComponent)」", folderURL)) }
+            var roots: [(name: String, url: URL, isLocal: Bool)] = [("iPhone の中（アプリの書類フォルダ）", URL.documentsDirectory, true)]
+            if let folderURL { roots.append(("選んだフォルダ「\(folderURL.lastPathComponent)」", folderURL, false)) }
             let scanRoots = roots
             let result = await Task.detached(priority: .userInitiated) {
                 AudioLibrary.scan(roots: scanRoots)
@@ -70,6 +70,25 @@ final class Library: ObservableObject {
             rebuild()
         } while needsRescan
         isScanning = false
+        onScanned?()
+    }
+
+    /// 探し終わったときに呼ぶ（自動ダウンロードを始めるため）
+    var onScanned: (@MainActor () -> Void)?
+
+    /// iPhone の中にある回の数
+    var localCount: Int { files.values.filter(\.isLocal).count }
+
+    /// iPhone の中にまだない回（ダウンロードの対象）
+    var episodesToDownload: [Episode] {
+        Show.allCases.flatMap { episodes(of: $0) }.filter { files[$0.id].map { !$0.isLocal } ?? false }
+    }
+
+    /// ダウンロードが終わった回を、iPhone の中のファイルに差し替える
+    func addLocalFile(_ url: URL, for episode: Episode) {
+        let old = files[episode.id]
+        files[episode.id] = AudioFile(url: url, isDownloaded: true, isLocal: true, titleFromName: old?.titleFromName ?? "")
+        rebuild()
     }
 
     // MARK: - iCloud Drive のフォルダ

@@ -13,6 +13,7 @@ struct EpisodeListView: View {
     @EnvironmentObject private var library: Library
     @EnvironmentObject private var store: ListeningStore
     @EnvironmentObject private var player: AudioPlayer
+    @EnvironmentObject private var downloader: Downloader
 
     @AppStorage("selectedShow") private var show: Show = .kinyo
     @AppStorage("episodeFilter") private var filter: EpisodeFilter = .all
@@ -27,7 +28,12 @@ struct EpisodeListView: View {
                     row(episode)
                 }
             } header: {
-                Text("音声あり \(library.fileCount(show)) 回 ／ 全 \(library.episodes(of: show).count) 回")
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("音声あり \(library.fileCount(show)) 回 ／ 全 \(library.episodes(of: show).count) 回")
+                    if let current = downloader.current {
+                        Text("iPhone にダウンロード中：\(current.show.name) \(current.numberLabel)（残り \(downloader.remaining) 回）")
+                    }
+                }
             }
         }
         .listStyle(.plain)
@@ -99,7 +105,13 @@ struct EpisodeListView: View {
         return Button {
             if let file { player.play(episode, file: file) }
         } label: {
-            EpisodeRow(episode: episode, state: state, file: file, isCurrent: player.current?.id == episode.id)
+            EpisodeRow(
+                episode: episode,
+                state: state,
+                file: file,
+                isCurrent: player.current?.id == episode.id,
+                isDownloading: downloader.current?.id == episode.id
+            )
         }
         .buttonStyle(.plain)
         .swipeActions(edge: .leading) {
@@ -145,6 +157,7 @@ struct EpisodeRow: View {
     let state: ListeningState
     let file: AudioFile?
     let isCurrent: Bool
+    let isDownloading: Bool
 
     var body: some View {
         HStack(spacing: 12) {
@@ -153,11 +166,15 @@ struct EpisodeRow: View {
                     Text(episode.numberLabel)
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
-                    if file?.isDownloaded == false {
-                        Image(systemName: "icloud.and.arrow.down")
+                    if isDownloading {
+                        ProgressView()
+                            .controlSize(.mini)
+                            .accessibilityLabel("iPhone にダウンロード中")
+                    } else if let file, !file.isLocal {
+                        Image(systemName: "icloud")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
-                            .accessibilityLabel("iCloud から読み込み")
+                            .accessibilityLabel("まだ iCloud にだけある")
                     }
                     if state.favorite {
                         Image(systemName: "heart.fill")

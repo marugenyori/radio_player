@@ -5,8 +5,12 @@ struct AudioFile: Sendable {
     let url: URL
     /// iCloud 上にあって、まだ iPhone にダウンロードされていなければ false
     let isDownloaded: Bool
+    /// アプリの書類フォルダ（iPhone の中）にあれば true。iCloud から消えても再生できる
+    let isLocal: Bool
     /// ファイル名の「120 タイトル.mp3」のタイトル部分（なければ空）
     let titleFromName: String
+
+    var priority: Int { isLocal ? 2 : isDownloaded ? 1 : 0 }
 }
 
 /// フォルダの中から音声ファイルを探し、番組と回番号を割り出す
@@ -19,7 +23,7 @@ enum AudioLibrary {
         var report: [String] = []
     }
 
-    static func scan(roots: [(name: String, url: URL)]) -> ScanResult {
+    static func scan(roots: [(name: String, url: URL, isLocal: Bool)]) -> ScanResult {
         var result = ScanResult()
         for root in roots {
             var fileCount = 0
@@ -29,13 +33,13 @@ enum AudioLibrary {
             walk(root.url, depth: 0) { url in
                 fileCount += 1
                 if samples.count < 3 { samples.append(url.lastPathComponent) }
-                guard let file = audioFile(at: url) else { return }
+                guard let file = audioFile(at: url, isLocal: root.isLocal) else { return }
                 audioCount += 1
                 guard let id = identify(url: file.url) else { return }
                 matched += 1
                 let key = Episode.key(id.show, id.number)
-                // 同じ回が2つあれば、ダウンロード済みのほうを使う
-                if let existing = result.files[key], existing.isDownloaded || !file.isDownloaded { return }
+                // 同じ回が2つあれば、iPhone の中 → ダウンロード済み → 未ダウンロード の順に優先する
+                if let existing = result.files[key], existing.priority >= file.priority { return }
                 result.files[key] = file
             }
             var line = "\(root.name)：ファイル \(fileCount) 個、音声 \(audioCount) 個、回番号あり \(matched) 個"
@@ -94,7 +98,7 @@ enum AudioLibrary {
         }.value
     }
 
-    private static func audioFile(at url: URL) -> AudioFile? {
+    private static func audioFile(at url: URL, isLocal: Bool) -> AudioFile? {
         var name = url.lastPathComponent
         var realURL = url
         var isPlaceholder = false
@@ -116,7 +120,7 @@ enum AudioLibrary {
             downloaded = status == .current
         }
 
-        return AudioFile(url: realURL, isDownloaded: downloaded, titleFromName: titleFromName(name))
+        return AudioFile(url: realURL, isDownloaded: downloaded, isLocal: isLocal, titleFromName: titleFromName(name))
     }
 
     /// 「120 タイトル.mp3」「120_タイトル.mp3」からタイトルを取り出す。「001kaime.mp3」のように区切りがなければ空

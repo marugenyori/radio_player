@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 /// 設定：音声ファイルの入れ方、iCloud Drive のフォルダ選択、タイトル一覧の差し替え
 struct SettingsView: View {
     @EnvironmentObject private var library: Library
+    @EnvironmentObject private var downloader: Downloader
     @Environment(\.dismiss) private var dismiss
 
     private enum ImportKind {
@@ -39,6 +40,27 @@ struct SettingsView: View {
                 } footer: {
                     if !library.scanReport.isEmpty {
                         Text(library.scanReport.joined(separator: "\n"))
+                    }
+                }
+
+                Section {
+                    LabeledContent("iPhone に保存済み", value: "\(library.localCount) 回")
+                    if let current = downloader.current {
+                        LabeledContent("ダウンロード中", value: "\(current.show.name) \(current.numberLabel)")
+                        LabeledContent("残り", value: "\(downloader.remaining) 回")
+                        Button("止める", role: .destructive) { downloader.stop() }
+                    } else if !library.episodesToDownload.isEmpty {
+                        Button("iCloud にある \(library.episodesToDownload.count) 回をダウンロード") { downloader.start() }
+                    }
+                    Toggle("iCloud から自動でダウンロード", isOn: $downloader.autoDownload)
+                } header: {
+                    Text("iPhone へのダウンロード")
+                } footer: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        if let error = downloader.errorMessage {
+                            Text(error).foregroundStyle(.red)
+                        }
+                        Text("ダウンロードした回は電波がなくても再生できます。ダウンロードはアプリを開いている間に進みます。消したいときは「ファイル」アプリの「このiPhone内」→「金曜・最高ラジオ」から削除できます。")
                     }
                 }
 

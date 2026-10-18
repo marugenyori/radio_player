@@ -18,7 +18,7 @@
 |---|---|
 | `project.yml` | XcodeGen の設定。`.xcodeproj` はリポジトリに入れず、CI で `xcodegen generate` して作る |
 | `RadioPlayer/App` | アプリの入口と、一番外側の画面 |
-| `RadioPlayer/Models` | 番組と回（`Episode`）、タイトル一覧（`EpisodeCatalog`）、ファイル探し（`AudioLibrary`）、聴取状況（`ListeningStore`）、再生（`AudioPlayer`） |
+| `RadioPlayer/Models` | 番組と回（`Episode`）、タイトル一覧（`EpisodeCatalog`）、ファイル探し（`AudioLibrary`）、iPhone へのダウンロード（`Downloader`）、聴取状況（`ListeningStore`）、再生（`AudioPlayer`） |
 | `RadioPlayer/Views` | 一覧・再生画面・下の再生バー・設定 |
 | `episodes.json` | 回番号とタイトルの一覧（リポジトリ直下。アプリに同梱される。ないときは CI が空の一覧を作ってビルドする） |
 | `tools/make_icon.py` | アプリアイコン（1024px）を作るスクリプト |
@@ -42,5 +42,6 @@
 - パスに `saikou` か「最高」があれば最高ラジオ、それ以外は金曜ラジオ
 - ファイル名の先頭の数字が回番号。数字で始まらないファイルは無視
 - 「120 タイトル.mp3」のように区切りのあとに文字があれば、一覧のタイトルが空のときに使う
-- iCloud の未ダウンロードのファイル（`.001.mp3.icloud`）も一覧に出し、再生時に `NSFileCoordinator` でダウンロードを待つ
+- iCloud のフォルダにある音声は `Downloader` が iPhone の中（書類フォルダの `kinyo_radio_mp3` / `saikou_radio_mp3`）へ1本ずつコピーし、iCloud 側の一時コピーは evict する。同じ回が複数あれば iPhone の中 → ダウンロード済み → 未ダウンロードの順に使う
+- iCloud の未ダウンロードのファイル（`.001.mp3.icloud`）も一覧に出し、コピー前に再生するときは `NSFileCoordinator` でダウンロードを待つ
 - 音声ファイルと `.p8` はリポジトリに入れない（`.gitignore` 済み）
