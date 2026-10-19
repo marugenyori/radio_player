@@ -58,6 +58,10 @@ final class AudioPlayer: ObservableObject {
     ))
 
     private var file: AVAudioFile?
+    /// アプリを開き直して前回の回を出しているとき、まだ開いていない音声ファイル
+    private var pendingFile: AudioFile?
+    /// 今回の再生で、もう「最後まで聴いた」と数えたか
+    private var counted = false
     /// 今の区間をどこ（秒）から鳴らし始めたか
     private var segmentStart: Double = 0
     /// 区間を入れ直すたびに増やす（止めたときの完了通知を「聴き終わった」と取り違えないため）
@@ -82,17 +86,39 @@ final class AudioPlayer: ObservableObject {
     // MARK: - 操作
 
     func play(_ episode: Episode, file audioFile: AudioFile) {
-        if current?.id == episode.id {
+        if current?.id == episode.id, file != nil {
             if !isPlaying { resume() }
             return
         }
+        let state = store.state(episode.id)
+        let start = current?.id == episode.id
+            ? currentTime
+            : (state.listened ? 0 : max(0, state.position - Self.resumeRewindSeconds))
+        load(episode, file: audioFile, start: start)
+    }
+
+    /// アプリを開き直したとき、前回聴いていた回を一時停止の状態で出す（音声はまだ開かない）
+    func restore(_ episode: Episode, file audioFile: AudioFile) {
+        guard current == nil else { return }
+        let state = store.state(episode.id)
+        current = episode
+        pendingFile = audioFile
+        duration = state.duration
+        currentTime = state.listened ? 0 : max(0, state.position - Self.resumeRewindSeconds)
+        updateNowPlaying()
+    }
+
+    private func load(_ episode: Episode, file audioFile: AudioFile, start: Double) {
         if isPlaying { pause() } else { saveProgress() }
         stopNode()
         file = nil
+        pendingFile = nil
+        counted = false
         current = episode
-        currentTime = 0
+        currentTime = start
         duration = store.state(episode.id).duration
         isLoading = true
+        store.lastEpisodeID = episode.id
         updateNowPlaying()
 
         Task {
@@ -109,9 +135,7 @@ final class AudioPlayer: ObservableObject {
                 engine.disconnectNodeOutput(node)
                 engine.connect(node, to: converter, format: opened.processingFormat)
 
-                let state = store.state(episode.id)
-                let start = state.listened ? 0 : max(0, state.position - Self.resumeRewindSeconds)
-                schedule(from: start)
+                schedule(from: min(start, max(0, duration - 1)))
                 isLoading = false
                 resume()
             } catch {
@@ -125,6 +149,10 @@ final class AudioPlayer: ObservableObject {
     }
 
     func resume() {
+        if file == nil, let current, let pendingFile {
+            load(current, file: pendingFile, start: currentTime)
+            return
+        }
         guard file != nil else { return }
         try? AVAudioSession.sharedInstance().setActive(true)
         if !engine.isRunning {
@@ -152,6 +180,12 @@ final class AudioPlayer: ObservableObject {
     }
 
     func seek(to seconds: Double) {
+        if file == nil, pendingFile != nil {
+            // まだ開いていないときは、始める位置だけ変えておく
+            currentTime = min(max(0, seconds), duration > 0 ? duration : seconds)
+            updateNowPlaying()
+            return
+        }
         guard file != nil else { return }
         let wasPlaying = isPlaying
         let upper = duration > 0 ? max(0, duration - 0.5) : seconds
@@ -229,6 +263,8 @@ final class AudioPlayer: ObservableObject {
         guard startFrame < file.length else { return }
         segmentStart = seconds
         currentTime = seconds
+        // 最初から聴き直すときは、もう一度数える
+        if seconds < 1 { counted = false }
         generation += 1
         let token = generation
         node.scheduleSegment(
@@ -278,8 +314,9 @@ final class AudioPlayer: ObservableObject {
     private func tick() {
         guard !isLoading, let current else { return }
         updateCurrentTime()
-        if duration > 0, currentTime / duration >= Self.listenedRatio, !store.state(current.id).listened {
-            store.setListened(current.id, true)
+        if duration > 0, currentTime / duration >= Self.listenedRatio, !counted {
+            counted = true
+            store.countPlay(current.id)
         }
         if Date().timeIntervalSince(lastSaved) >= 5 {
             saveProgress()
@@ -292,7 +329,8 @@ final class AudioPlayer: ObservableObject {
         timer?.invalidate()
         timer = nil
         currentTime = 0
-        store.setListened(episode.id, true)
+        if !counted { store.countPlay(episode.id) }
+        counted = false
         store.updatePosition(episode.id, position: 0, duration: duration)
 
         if autoPlayNext, let next = nextEpisode(episode) {

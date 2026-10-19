@@ -2,6 +2,7 @@ import SwiftUI
 
 enum EpisodeFilter: String, CaseIterable, Identifiable {
     case all = "すべて"
+    case inProgress = "聴きかけ（最近聴いた順）"
     case unlistened = "未聴"
     case favorites = "お気に入り"
     case available = "音声あり"
@@ -88,15 +89,23 @@ struct EpisodeListView: View {
         var list = library.episodes(of: show)
         switch filter {
         case .all: break
+        case .inProgress:
+            // 途中まで聴いた回を、最後に聴いた順に並べる
+            return list
+                .filter { store.state($0.id).isInProgress }
+                .sorted { (store.state($0.id).lastPlayed ?? .distantPast) > (store.state($1.id).lastPlayed ?? .distantPast) }
+                .filter { matches($0) }
         case .unlistened: list = list.filter { !store.state($0.id).listened }
         case .favorites: list = list.filter { store.state($0.id).favorite }
         case .available: list = list.filter { library.file(for: $0) != nil }
         }
-        let q = query.trimmingCharacters(in: .whitespaces)
-        if !q.isEmpty {
-            list = list.filter { String($0.number).contains(q) || $0.title.localizedCaseInsensitiveContains(q) }
-        }
+        list = list.filter { matches($0) }
         return newestFirst ? list.reversed() : list
+    }
+
+    private func matches(_ episode: Episode) -> Bool {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        return q.isEmpty || String(episode.number).contains(q) || episode.title.localizedCaseInsensitiveContains(q)
     }
 
     private func row(_ episode: Episode) -> some View {
@@ -175,6 +184,11 @@ struct EpisodeRow: View {
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .accessibilityLabel("まだ iCloud にだけある")
+                    }
+                    if state.playCount > 0 {
+                        Text("\(state.playCount)回聴いた")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                     }
                     if state.favorite {
                         Image(systemName: "heart.fill")

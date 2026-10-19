@@ -41,6 +41,9 @@
 - `AudioPlayer` は AVAudioEngine で「AVAudioPlayerNode → AVAudioMixerNode（形式をそろえる）→ TimePitch（速度）→ EQ → DynamicsProcessor → 出力」とつないで鳴らす。音質の調整（`SoundSettings`）は EQ と DynamicsProcessor に反映する
 - 区間を入れ直すたびに `generation` を増やし、`node.stop()` で来る完了通知を「聴き終わった」と取り違えないようにしている
 - 聴き終わったら次の回（音声がある回）を自動再生する（設定でオフにできる）
+- 最後に聴いていた回は `lastEpisodeID` に覚え、起動後の最初のファイル探しが終わったら `restore` で下の再生バーに一時停止の状態で出す（音声は再生ボタンを押したときに開く）
+- 97% まで聴くか最後まで行くと `countPlay` で聴いた回数を1つ増やす（1回の再生で1回だけ。最初から聴き直すとまた数える）
+- `ListeningState` に項目を足すときは `init(from:)` で `decodeIfPresent` にする（古い保存データが読めなくなり、全部消えるため）
 
 ## 音声ファイルの決まり
 

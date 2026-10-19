@@ -20,7 +20,15 @@ struct RadioPlayerApp: App {
             guard let library, let next = library.next(after: episode), let file = library.file(for: next) else { return nil }
             return (next, file)
         }
-        library.onScanned = { [weak downloader] in downloader?.startIfAuto() }
+        library.onScanned = { [weak downloader, weak library, weak player, weak store] in
+            // 前回聴いていた回を、下の再生バーに出す
+            if let library, let player, let id = store?.lastEpisodeID,
+               let episode = Show.allCases.flatMap({ library.episodes(of: $0) }).first(where: { $0.id == id }),
+               let file = library.file(for: episode) {
+                player.restore(episode, file: file)
+            }
+            downloader?.startIfAuto()
+        }
         _library = StateObject(wrappedValue: library)
         _downloader = StateObject(wrappedValue: downloader)
     }

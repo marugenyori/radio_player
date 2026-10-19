@@ -40,6 +40,11 @@ struct PlayerView: View {
                     .foregroundStyle(.secondary)
                 Text(episode.numberLabel)
                     .font(.headline)
+                if state.playCount > 0 {
+                    Text("これまでに \(state.playCount) 回聴いた")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 Text(episode.displayTitle)
                     .font(.title3.bold())
                     .multilineTextAlignment(.center)

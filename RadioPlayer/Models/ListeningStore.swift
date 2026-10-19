@@ -6,6 +6,23 @@ struct ListeningState: Codable, Equatable {
     var duration: Double = 0
     var listened = false
     var favorite = false
+    /// 最後まで（97% 以上）聴いた回数
+    var playCount = 0
+    /// 最後に聴いた日時
+    var lastPlayed: Date?
+
+    init() {}
+
+    // あとから足した項目がない古い保存データも読めるようにする
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        position = try c.decodeIfPresent(Double.self, forKey: .position) ?? 0
+        duration = try c.decodeIfPresent(Double.self, forKey: .duration) ?? 0
+        listened = try c.decodeIfPresent(Bool.self, forKey: .listened) ?? false
+        favorite = try c.decodeIfPresent(Bool.self, forKey: .favorite) ?? false
+        playCount = try c.decodeIfPresent(Int.self, forKey: .playCount) ?? (listened ? 1 : 0)
+        lastPlayed = try c.decodeIfPresent(Date.self, forKey: .lastPlayed)
+    }
 
     /// 0〜1 の進み具合
     var progress: Double { duration > 0 ? min(1, position / duration) : 0 }
@@ -19,6 +36,13 @@ final class ListeningStore: ObservableObject {
     @Published private(set) var states: [String: ListeningState]
 
     private let defaultsKey = "listeningStates"
+    private let lastEpisodeKey = "lastEpisodeID"
+
+    /// 最後に聴いていた回（アプリを開き直したときに下の再生バーに出す）
+    var lastEpisodeID: String? {
+        get { UserDefaults.standard.string(forKey: lastEpisodeKey) }
+        set { UserDefaults.standard.set(newValue, forKey: lastEpisodeKey) }
+    }
 
     init() {
         if let data = UserDefaults.standard.data(forKey: defaultsKey),
@@ -37,6 +61,17 @@ final class ListeningStore: ObservableObject {
         var state = state(id)
         state.position = position
         if duration > 0 { state.duration = duration }
+        state.lastPlayed = Date()
+        set(state, for: id)
+        lastEpisodeID = id
+    }
+
+    /// 最後まで聴いた：回数を1つ増やし、「聴いた」にする
+    func countPlay(_ id: String) {
+        var state = state(id)
+        state.playCount += 1
+        state.listened = true
+        state.lastPlayed = Date()
         set(state, for: id)
     }
 
